@@ -1,0 +1,41 @@
+## Task Requirements
+
+Process the input entity list item by item, applying the following rules:
+
+### Rule 1: Remove Undetectable Entities
+Replace the following types of entities with `<REMOVE>`:
+- Numbers or pure numeric strings (e.g., "3", "2024")
+- Abstract concepts (e.g., "scene", "motion", "serene")
+- Light/weather concepts (e.g., "sunlight", "light", "sun", "shade")
+- Positional descriptors (e.g., "on the right", "in the background")
+- Time concepts (e.g., "2024")
+- Large scene concepts (e.g., "kitchen", "shop", "restaurant", "office", "park", "street", "room", "building")
+- Relationship/group descriptors (e.g., "couple", "family", "group", "crowd", "team")
+- Generic/overly broad terms (e.g., "utensil", "furniture", "clothing")
+- Structural elements (e.g., "wall", "ceiling", "floor", "background")
+- Other concepts that cannot be verified for existence using object detection models
+
+### Rule 2: Remove Modifiers
+Keep the core noun and remove all modifiers:
+- Color modifiers: "white jacket" → "jacket"
+- Material modifiers: "wooden chair" → "chair"
+- Size modifiers: "small dog" → "dog"
+- Other adjectives: "beautiful flower" → "flower"
+
+### Rule 3: Maintain Format and Order
+- Output must be in JSON array format
+- Maintain exactly the same order as input
+- Do not add or remove positions, only replace content
+
+## Output Format
+Return ONLY a JSON array. Do not include any explanations, comments, or additional text.
+
+## Example
+
+**Input:** ["3","air","backpack","bench","white jacket","couple","light","motion","kitchen","person","tree"]
+
+**Output:** ["<REMOVE>","<REMOVE>","backpack","bench","jacket","<REMOVE>","<REMOVE>","<REMOVE>","<REMOVE>","person","tree"]
+
+Process the following entity list according to the cleaning rules. Return ONLY the cleaned JSON array with no additional text.
+
+{entity_list}
