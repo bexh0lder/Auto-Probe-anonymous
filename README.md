@@ -1,4 +1,4 @@
-Note: Make sure to complete all `[necessary]` fields in the pipline_llava1.6.yaml configuration file prior to execution.
+Note: Make sure to complete all `[necessary]` fields in the /experiments/pipline_llava1.6.yaml configuration file prior to execution.
 
 Please download:
 - https://huggingface.co/google/owlv2-large-patch14-ensemble
