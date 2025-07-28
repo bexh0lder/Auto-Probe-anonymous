@@ -1,4 +1,3 @@
-
 ## Task Requirements
 
 Extract all distinct physical objects from the provided description, applying the following rules:

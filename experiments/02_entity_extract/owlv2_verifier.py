@@ -5,17 +5,16 @@ import logging
 import argparse
 import yaml
 from tqdm import tqdm
-import copy # ensure copy is imported
+import copy
 import torch
 from PIL import Image
 
 try:
     import inflect
 except ImportError:
-    # 使用 print 因为 logger 可能尚未配置
     print("WARNING: inflect library not found. Pluralization for OWL-ViT query will be basic (add 's').")
     inflect = None
-    sys.exit(1) # Per original script, exit if inflect is missing
+    sys.exit(1)
 
 try:
     from transformers import AutoProcessor, Owlv2ForObjectDetection
@@ -23,22 +22,24 @@ except ImportError:
     print("ERROR: transformers library not found. Please install it: pip install transformers[torch]")
     sys.exit(1)
 
-# --- 全局Logger ---
-logger = logging.getLogger("OwlVerifierWithSingleInput")
+# Global logger
+logger = logging.getLogger("OwlVerifier")
+
 
 def setup_main_logger(log_level_str="INFO"):
-    """配置全局logger"""
+    """Configure global logger with specified level."""
     numeric_level = getattr(logging, log_level_str.upper(), logging.INFO)
     logger.setLevel(numeric_level)
-    if not logger.handlers: # 避免重复添加 handlers
+    if not logger.handlers:
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
     logger.propagate = False
 
+
 def load_config(config_path):
-    """从YAML文件加载配置"""
+    """Load configuration from YAML file."""
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
@@ -47,10 +48,11 @@ def load_config(config_path):
             return None
 
         if '02_entity_extract_owlv2_verifier' not in config_data or config_data['02_entity_extract_owlv2_verifier'] is None:
-            print("❌ '02_entity_extract_owlv2_verifier' key is missing or null in the configuration file. Exiting.")
+            print("ERROR: '02_entity_extract_owlv2_verifier' key is missing or null in the configuration file.")
             sys.exit(1)
         config_data = config_data['02_entity_extract_owlv2_verifier']
 
+        # Set default configuration values
         config_data.setdefault('io', {})
         config_data.setdefault('owl_vit', {})
         config_data.setdefault('logging', {})
@@ -72,14 +74,19 @@ def load_config(config_path):
 
         return config_data
     except FileNotFoundError:
-        print(f"ERROR: Config file not found: {config_path}"); return None
+        print(f"ERROR: Config file not found: {config_path}")
+        return None
     except yaml.YAMLError as e:
-        print(f"ERROR: Error parsing YAML file {config_path}: {e}"); return None
+        print(f"ERROR: Error parsing YAML file {config_path}: {e}")
+        return None
     except Exception as e:
-        print(f"ERROR: Unexpected error loading config {config_path}: {e}"); return None
+        print(f"ERROR: Unexpected error loading config {config_path}: {e}")
+        return None
 
 
 class OwlVitVerifier:
+    """OWL-ViT based object verification with confidence thresholds."""
+    
     def __init__(self, config_dict):
         self.config = config_dict
         self.logger = logger
@@ -93,6 +100,7 @@ class OwlVitVerifier:
 
         owl_model_path = owl_conf.get('model_path')
 
+        # Initialize pluralization engine
         self.pluralizer = None
         if inflect:
             try:
@@ -103,6 +111,7 @@ class OwlVitVerifier:
         else:
             self.logger.warning("Inflect library not available. Pluralization will be basic (add 's').")
 
+        # Initialize OWL-ViT model
         self.model, self.processor, self.device = None, None, None
         if os.path.exists(owl_model_path) and os.path.isdir(owl_model_path):
             self._load_owl_model(owl_model_path)
@@ -219,7 +228,7 @@ class OwlVitVerifier:
         return present, absent, uncertain, candidate_max_scores
         # MODIFICATION END
 
-# --- 辅助 JSON 加载/保存函数 ---
+# --- Helper JSON loading/saving functions ---
 def _load_json_data_helper(filepath, description, current_logger):
     if not filepath:
         current_logger.info(f"{description} file path not provided. Returning empty list.")
@@ -311,7 +320,7 @@ def _save_json_data_helper(data, filepath, description, current_logger):
     except Exception as e:
         current_logger.error(f"Failed to write {description} to file '{filepath}': {e}", exc_info=True)
 
-# --- Main 函数 ---
+# --- Main function ---
 def main():
     cli_parser = argparse.ArgumentParser(description="OWL-ViT Verifier with dual thresholds, processing a single JSON input file.")
     cli_parser.add_argument("--config", type=str, default="config_owl_verifier.yaml", help="Path to YAML config.")
@@ -382,15 +391,15 @@ def main():
             logger.warning(f"Skipping item (no valid 'image' field): {str(output_item)[:100]}")
             output_item["ground_truth_objects"] = []
             output_item["hallucinated_objects"] = list(candidates_for_owl_input)
-            # output_item["_discarded_uncertain_objects"] = [] # 旧代码
+            # output_item["_discarded_uncertain_objects"] = [] # old code
             owl_verification_details = {cand: 0.0 for cand in candidates_for_owl_input}
-            # discarded_uncertain_objects_dict 保持为 {} (正确)
+            # discarded_uncertain_objects_dict remains as {} (correct)
         elif not candidates_for_owl_input:
             logger.info(f"No valid candidates to verify for image '{image_filename}'. All original fields preserved. Item sample: {str(output_item)[:100]}")
             output_item["ground_truth_objects"] = []
             output_item["hallucinated_objects"] = []
-            # output_item["_discarded_uncertain_objects"] = [] # 旧代码
-            # owl_verification_details 和 discarded_uncertain_objects_dict 保持为 {} (正确)
+            # output_item["_discarded_uncertain_objects"] = [] # old code
+            # owl_verification_details and discarded_uncertain_objects_dict remain as {} (correct)
         else:
             full_image_path = os.path.join(image_base_dir, image_filename)
             present, absent, uncertain, returned_details = verifier.verify_objects(full_image_path, candidates_for_owl_input)
@@ -398,13 +407,12 @@ def main():
 
             output_item["ground_truth_objects"] = [obj['object'] for obj in present]
             output_item["hallucinated_objects"] = absent
-            # output_item["_discarded_uncertain_objects"] = uncertain # 旧代码
 
             # MODIFICATION START: Convert 'uncertain' list to the new dictionary format
             discarded_uncertain_objects_dict = {obj_info['object']: obj_info['score'] for obj_info in uncertain}
             # MODIFICATION END
         
-        # 按照字典的权值从大到小排序
+        # Sort dictionary by values from large to small
         owl_verification_details = dict(sorted(owl_verification_details.items(), key=lambda x: x[1], reverse=True))
         discarded_uncertain_objects_dict = dict(sorted(discarded_uncertain_objects_dict.items(), key=lambda x: x[1], reverse=True))
         

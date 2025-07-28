@@ -14,7 +14,7 @@ from collections import Counter
 INVALID_ENTITY_PATTERNS = ['object', 'entity', 'entity1', 'entity2', 'entity3', 'hallucinated_objects', 'object1', 'object2', 'example object',"woman", "man", "person", "lady", "gentleman","individual", "pepper", "cup", "bottle", "plant", "tree", "branch","building","water"]
 
 
-# --- 辅助 JSON 加载/保存函数 ---
+# --- Helper JSON loading/saving functions ---
 def _load_json_data_helper(filepath, description, logger):
     """Helper function to load JSON data."""
     if not filepath:
@@ -54,7 +54,7 @@ def _save_json_data_helper(data, filepath, description, logger):
     except Exception as e:
         logger.error(f"An unexpected error occurred while saving {description} to '{filepath}': {e}", exc_info=True)
 
-# --- Prompt 模板加载函数 ---
+# --- Prompt template loading functions ---
 def _load_prompt_template_file(file_path, logger):
     """Loads a prompt template string from a file."""
     if not file_path: # Path can be None if a particular template is not configured
@@ -70,7 +70,7 @@ def _load_prompt_template_file(file_path, logger):
         logger.error(f"Error loading prompt template '{file_path}': {e}")
         return None
 
-# --- OpenAI API 调用类 (用于 AttriBait) ---
+# --- OpenAI API Calling Class (for AttriBait) ---
 class SingleChoiceQuestionGenerator:
     def __init__(self, api_key=None, base_url=None, model_name="gpt-4o", logger=None, system_prompt_content=None): # MODIFIED: Added system_prompt_content
         self.client = None
@@ -145,10 +145,10 @@ class SingleChoiceQuestionGenerator:
                 result = json.loads(response_content_cleaned)
 
                 if isinstance(result, list):
-                # 如果直接返回的是问题列表
+                # If directly returns a question list
                     generated_q_list = result
                 elif isinstance(result, dict):
-                    # 如果返回的是包含 questions 键的字典
+                    # If returns a dictionary containing questions key
                     generated_q_list = result.get("questions", [])
                     if not isinstance(generated_q_list, list): # Ensure questions is a list
                         self.logger.error(f"Content of 'questions' key is not a list: {type(generated_q_list)}. Original dict: {result}")
@@ -188,7 +188,7 @@ class SingleChoiceQuestionGenerator:
     def get_total_tokens_used(self):
         return self.api_tokens_used_total
 
-# --- 数据验证函数 ---
+# --- Data validation functions ---
 def validate_generated_questions(questions, logger):
     valid_questions = []
     invalid_count = 0
@@ -217,7 +217,7 @@ def validate_generated_questions(questions, logger):
         logger.warning(f"Filtered out {invalid_count} questions with invalid entity names or placeholder text.")
     return valid_questions
 
-# --- 生成基础的是/否问题 ($Q$) ---
+# --- Generate basic yes/no questions ($Q$) ---
 def generate_yes_no_questions(eval_items, starting_question_id, include_hallucinated, include_ignored, logger):
     qa_dataset = []
     question_id = starting_question_id
@@ -269,7 +269,7 @@ def generate_yes_no_questions(eval_items, starting_question_id, include_hallucin
                 question_id += 1
     return qa_dataset, question_id
 
-# --- 生成增强型单选题 ($Q_p$ - AttriBait) ---
+# --- Generate enhanced multiple-choice questions ($Q_p$ - AttriBait) ---
 def generate_enhanced_questions(eval_items, config_enhanced, starting_question_id, logger):
     """
     Generates enhanced multiple-choice questions (AttriBait) for hallucinated objects.
@@ -280,7 +280,7 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
     records_processed_for_enhanced = 0
     total_api_tokens_for_enhanced = 0
     
-    # 新增一个变量来记录有问题的实体
+    # Add a new variable to record problematic entities
     multi_question_entities_log = {}
 
     prompt_with_attrs_path = config_enhanced.get('prompt_template_with_attributes')
@@ -322,8 +322,8 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
         all_hallucinated_objects_for_item = item.get("hallucinated_objects", [])
         attriBait_map = item.get("sg_attributes", {})
         
-        # 注意：由于移除了场景图模型，sg_attributes 将始终为空
-        # 这意味着所有增强型问题都将使用 "无属性" 模板生成
+        # Note: Since scene graph models have been removed, sg_attributes will always be empty
+        # This means all enhanced questions will be generated using the "no attributes" template
 
         if not isinstance(all_hallucinated_objects_for_item, list):
             logger.warning(f"Item {image_id} 'hallucinated_objects' is not a list for enhanced Qs, skipping. Value: {all_hallucinated_objects_for_item}")
@@ -380,7 +380,7 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
                 llm_qs_batch = generator.generate_questions(prepared_prompt, max_retries=max_api_call_retries, retry_delay_seconds=retry_delay)
                 total_api_tokens_for_enhanced += (generator.get_total_tokens_used() - tokens_before_call)
 
-                # --- 新增：日志记录逻辑 ---
+                # --- New: Logging logic ---
                 if llm_qs_batch:
                     entity_counts = Counter((q.get("entity") or q.get("object")) for q in llm_qs_batch if (q.get("entity") or q.get("object")))
                     for entity, count in entity_counts.items():
@@ -388,19 +388,19 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
                             log_key = f"Image '{image_id}' - Entity '{entity}'"
                             multi_question_entities_log[log_key] = count
                             logger.warning(f"Img {image_id}: Entity '{entity}' generated {count} questions in a single API call.")
-                # --- 日志记录逻辑结束 ---
+                # --- End of logging logic ---
 
                 newly_generated_entities_this_batch = set()
                 for q_data in llm_qs_batch:
                     if not isinstance(q_data, dict) or not all(k in q_data for k in ["question", "options"]):
                         logger.warning(f"Img {image_id} (With Attrs, Attempt {rerequest_attempt+1}): API returned incomplete Q structure, skipping: {str(q_data)[:150]}"); continue
                     
-                    # 兼容 "entity" 和 "object" 两种字段名
+                    # Compatible with both "entity" and "object" field names
                     entity_from_llm = q_data.get("entity") or q_data.get("object")
                     if not entity_from_llm:
                         logger.warning(f"Img {image_id} (With Attrs, Attempt {rerequest_attempt+1}): API returned Q without 'entity' or 'object' field, skipping: {str(q_data)[:150]}"); continue
                     
-                    # 标准化字段名为 "entity"
+                    # Standardize field name to "entity"
                     if "object" in q_data and "entity" not in q_data:
                         q_data["entity"] = q_data.pop("object")
                     if entity_from_llm not in target_object_names_this_call:
@@ -438,7 +438,7 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
                 llm_qs_batch = generator.generate_questions(prepared_prompt, max_retries=max_api_call_retries, retry_delay_seconds=retry_delay)
                 total_api_tokens_for_enhanced += (generator.get_total_tokens_used() - tokens_before_call)
                 
-                # --- 新增：日志记录逻辑 ---
+                # --- New: Logging logic ---
                 if llm_qs_batch:
                     entity_counts = Counter((q.get("entity") or q.get("object")) for q in llm_qs_batch if (q.get("entity") or q.get("object")))
                     for entity, count in entity_counts.items():
@@ -446,19 +446,19 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
                             log_key = f"Image '{image_id}' - Entity '{entity}'"
                             multi_question_entities_log[log_key] = count
                             logger.warning(f"Img {image_id}: Entity '{entity}' generated {count} questions in a single API call.")
-                # --- 日志记录逻辑结束 ---
+                # --- End of logging logic ---
 
                 newly_generated_entities_this_batch = set()
                 for q_data in llm_qs_batch:
                     if not isinstance(q_data, dict) or not all(k in q_data for k in ["question", "options"]):
                         logger.warning(f"Img {image_id} (No Attrs, Attempt {rerequest_attempt+1}): API returned incomplete Q structure, skipping: {str(q_data)[:150]}"); continue
                     
-                    # 兼容 "entity" 和 "object" 两种字段名
+                    # Compatible with both "entity" and "object" field names
                     entity_from_llm = q_data.get("entity") or q_data.get("object")
                     if not entity_from_llm:
                         logger.warning(f"Img {image_id} (No Attrs, Attempt {rerequest_attempt+1}): API returned Q without 'entity' or 'object' field, skipping: {str(q_data)[:150]}"); continue
                     
-                    # 标准化字段名为 "entity"
+                    # Standardize field name to "entity"
                     if "object" in q_data and "entity" not in q_data:
                         q_data["entity"] = q_data.pop("object")
                     if entity_from_llm not in target_object_names_this_call:
@@ -489,23 +489,23 @@ def generate_enhanced_questions(eval_items, config_enhanced, starting_question_i
             if not isinstance(options, dict) or not all(k in options for k in ["A", "B"]):
                 logger.warning(f"Img {image_id}: API options for entity '{entity_from_llm}' format incorrect or missing A/B, skipping. Opts: {options}"); continue
             
-            # 1. 添加 C 选项为 "Others"
+            # 1. Add C option as "Others"
             options["C"] = "Others"
             
-            # 2. 添加 D 选项为正确答案
+            # 2. Add D option as the correct answer
             options["D"] = f"There is no {entity_from_llm} in the image"
             
             all_enhanced_questions.append({
                 "question_id": question_id_counter, "image": image_id,
                 "text": q_data["question"], 
-                "options": options,       # 使用包含A,B,C,D的新选项
-                "label": "D",             # 新的正确标签是 D
+                "options": options,       # Use new options containing A,B,C,D
+                "label": "D",             # New correct label is D
                 **item_metadata, "entity": entity_from_llm,
                 "entity_type": "hallucinated", "question_type": "enhanced"
             })
             question_id_counter += 1
             
-    # 修改函数的返回值，增加 multi_question_entities_log
+    # Modify function return value to include multi_question_entities_log
     return all_enhanced_questions, records_processed_for_enhanced, total_api_tokens_for_enhanced, question_id_counter, multi_question_entities_log
 
 # --- Main Data Processing Orchestrator ---
@@ -528,7 +528,7 @@ def process_data_from_config(config, cli_append_mode, input_path, output_path, l
     append_to_output = cli_append_mode
     newly_gen_basic_qs, newly_gen_enhanced_qs = [], []
     
-    # 在 run_stats 中增加用于记录的字段
+    # Add a field in run_stats for recording
     run_stats = {
         "input_records_processed": len(eval_items),
         "basic_qs_generated_this_run": 0,
@@ -591,13 +591,13 @@ def process_data_from_config(config, cli_append_mode, input_path, output_path, l
                 current_enhanced_cfg['max_rerequest_attempts'] = 2
                 logger.info(f"Using default max_rerequest_attempts: {current_enhanced_cfg['max_rerequest_attempts']}")
 
-            # 修改此处的函数调用，接收新的返回值
+            # Modify this function call to receive new return value
             e_qs, e_rec_proc, e_tokens_enhanced, next_q_id, multi_q_log = generate_enhanced_questions(eval_items, current_enhanced_cfg, next_q_id, logger)
             
             newly_gen_enhanced_qs.extend(e_qs)
             run_stats["enhanced_qs_generated_this_run"] = len(e_qs)
             run_stats["enhanced_records_processed_this_run"] = e_rec_proc
-            run_stats["multi_question_entity_warnings"] = multi_q_log # 将日志存入统计信息
+            run_stats["multi_question_entity_warnings"] = multi_q_log # Store log in statistics
             total_tokens_this_run += e_tokens_enhanced
     
     run_stats["api_tokens_used_this_run"] = total_tokens_this_run

@@ -9,7 +9,6 @@ from typing import Dict, List, Any, Optional
 from tqdm import tqdm
 import copy
 
-# API clients
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
@@ -20,7 +19,7 @@ except ImportError:
 
 class DetectionConsistencyCorrector:
     def __init__(self, config_path: str = "config_detection_corrector.yaml"):
-        """初始化检测一致性修正器"""
+        """Initialize detection consistency corrector."""
         self.config = self._load_config(config_path)
         self.logger = self._setup_logger()
         self.system_prompt = self._load_system_prompt()
@@ -28,7 +27,7 @@ class DetectionConsistencyCorrector:
         self.client = self._setup_api_client()
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """加载配置文件"""
+        """Load configuration file."""
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
@@ -41,7 +40,7 @@ class DetectionConsistencyCorrector:
         return config['02_entity_extract_consistency_corrector']
 
     def _setup_logger(self) -> logging.Logger:
-        """设置日志记录器"""
+        """Setup logger."""
         log_config = self.config.get('logging', {})
         log_level = getattr(logging, log_config.get('level', 'INFO').upper())
 
@@ -67,7 +66,7 @@ class DetectionConsistencyCorrector:
         return logger
 
     def _load_prompt_from_file(self, file_path: str) -> str:
-        """从文件加载prompt内容"""
+        """Load prompt content from file"""
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read().strip()
         if not content:
@@ -75,7 +74,7 @@ class DetectionConsistencyCorrector:
         return content
 
     def _load_system_prompt(self) -> Optional[str]:
-        """加载system prompt"""
+        """Load system prompt"""
         system_prompt_path = self.config.get('llm', {}).get('system_prompt_path')
         if not system_prompt_path:
             self.logger.info("No system_prompt_path provided. Proceeding without a specific system prompt.")
@@ -98,7 +97,7 @@ class DetectionConsistencyCorrector:
             return None
 
     def _load_user_prompt_template(self) -> str:
-        """加载user prompt模板"""
+        """Load user prompt template"""
         user_prompt_path = self.config.get('llm', {}).get('user_prompt_path')
         if not user_prompt_path:
             self.logger.critical("'user_prompt_path' is missing in the configuration.")
@@ -114,7 +113,7 @@ class DetectionConsistencyCorrector:
             raise
 
     def _setup_api_client(self):
-        """设置API客户端"""
+        """Setup API client"""
         api_config = self.config['llm']
         
         if not OPENAI_AVAILABLE:
@@ -131,7 +130,7 @@ class DetectionConsistencyCorrector:
         return OpenAI(**client_kwargs)
 
     def _call_llm_api(self, detected_objects: List[str], not_detected_objects: List[str], uncertain_objects: List[str]) -> Dict[str, Any]:
-        """调用LLM API进行检测一致性修正"""
+        """Call LLM API for detection consistency correction"""
         api_config = self.config['llm']
         
         if "{detection_results}" not in self.user_prompt_template:
@@ -173,7 +172,7 @@ class DetectionConsistencyCorrector:
                 result_text = response.choices[0].message.content.strip()
                 self.logger.debug(f"LLM raw response: {result_text[:200]}...")
                 
-                # 提取JSON答案
+                # Extract JSON answer
                 corrected_result = self._extract_final_answer(result_text)
                 if corrected_result:
                     return corrected_result
@@ -191,9 +190,9 @@ class DetectionConsistencyCorrector:
         return None
 
     def _extract_final_answer(self, llm_response: str) -> Optional[Dict[str, Any]]:
-        """从带推理的响应中提取最终JSON答案"""
+        """Extract final JSON answer from response with reasoning"""
         try:
-            # 方法1: 寻找"Step 2: Final Answer"后的JSON
+            # Method 1: Look for JSON after "Step 2: Final Answer"
             step2_start = llm_response.find("Step 2: Final Answer")
             if step2_start != -1:
                 json_part = llm_response[step2_start:]
@@ -202,19 +201,19 @@ class DetectionConsistencyCorrector:
                 if start != -1 and end > start:
                     json_str = json_part[start:end]
                     parsed = json.loads(json_str)
-                    # 验证包含所需字段
+                    # Validate contains required fields
                     if all(key in parsed for key in ['detected_objects', 'not_detected_objects', 'uncertain_objects']):
                         return parsed
             
-            # 方法2: 正则表达式提取最后一个完整JSON，包含三个字段
+            # Method 2: Regex extract last complete JSON containing three fields
             json_pattern = r'\{[^{}]*"detected_objects"[^{}]*"not_detected_objects"[^{}]*"uncertain_objects"[^{}]*\}'
             matches = re.findall(json_pattern, llm_response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
             
-            # 方法3: 查找任何包含三个目标字段的JSON
+            # Method 3: Find any JSON containing the three target fields
             json_blocks = re.findall(r'\{[^{}]*\}', llm_response)
-            for block in reversed(json_blocks):  # 从后往前查找
+            for block in reversed(json_blocks):  
                 try:
                     parsed = json.loads(block)
                     if all(key in parsed for key in ['detected_objects', 'not_detected_objects', 'uncertain_objects']):
@@ -228,21 +227,18 @@ class DetectionConsistencyCorrector:
         return None
 
     def process_single_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
-        """处理单个数据项"""
+        """Process a single data item"""
         image_name = item.get('image', 'unknown')
         self.logger.debug(f"Processing item: {image_name}")
 
-        # 创建输出字典，保持原有字段顺序
         result_item = copy.deepcopy(item)
         
         detected_objects = item.get('ground_truth_objects', [])
         not_detected_objects = item.get('hallucinated_objects', [])
         
-        # 从_discarded_uncertain_objects提取uncertain_objects
         discarded_uncertain_data = item.get('_discarded_uncertain_objects', {})
         uncertain_objects = list(discarded_uncertain_data.keys()) if isinstance(discarded_uncertain_data, dict) else []
 
-        # 验证数据类型
         if not isinstance(detected_objects, list):
             self.logger.warning(f"Item {image_name}: ground_truth_objects is not a list. Skipping correction.")
             return result_item
@@ -264,10 +260,8 @@ class DetectionConsistencyCorrector:
         correction_result = self._call_llm_api(detected_objects, not_detected_objects, uncertain_objects)
         
         if correction_result:
-            # 更新检测结果
             result_item['ground_truth_objects'] = correction_result.get('detected_objects', detected_objects)
             result_item['hallucinated_objects'] = correction_result.get('not_detected_objects', not_detected_objects)
-            # uncertain_objects保持不变，不需要更新_discarded_uncertain_objects
             
             self.logger.info(
                 f"Item {image_name}: Correction completed. "
@@ -282,7 +276,6 @@ class DetectionConsistencyCorrector:
         return result_item
 
     def process_file(self, input_file: Optional[str] = None, output_file: Optional[str] = None) -> None:
-        """处理整个文件"""
         input_path = input_file if input_file is not None else self.config['io']['input_file']
         output_path = output_file if output_file is not None else self.config['io']['output_file']
 
@@ -329,7 +322,6 @@ class DetectionConsistencyCorrector:
                 fallback_item['correction_error'] = f"Critical error during processing: {e}"
                 processed_data.append(fallback_item)
         
-        # 保存结果
         try:
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):

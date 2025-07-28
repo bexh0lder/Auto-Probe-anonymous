@@ -1,7 +1,7 @@
-# 运行评估，并将结果摘要记录到 all_pope_summaries.csv 文件中
+# Run evaluation and record result summary to all_pope_summaries.csv file
 # methods=("popular" "random" "adversarial")
 # for method in "${methods[@]}"; do
-#     echo "测试llava POPE方法: ${method}"
+#     echo "Testing llava POPE method: ${method}"
 #     python evaluate_llava_pope.py \
 #         --model_path /root/autodl-tmp/models/liuhaotian/llava-v1.5-7b \
 #         --question_file "/root/Auto-Probe/experiments/results/coco/llava/pope/coco_pope_${method}.json" \
@@ -12,7 +12,7 @@
 # methods=("popular" "random" "adversarial")
 # methods=("adversarial")
 # for method in "${methods[@]}"; do
-#     echo "测试instructblip POPE方法: ${method}"
+#     echo "Testing instructblip POPE method: ${method}"
 #     python evaluate_instructblip_pope.py \
 #         --model_name "blip2_vicuna_instruct" \
 #         --model_type "vicuna7b" \
@@ -23,7 +23,7 @@
 # done
 
 # for method in "${methods[@]}"; do
-#     echo "测试mplug_owl POPE方法: ${method}"
+#     echo "Testing mplug_owl POPE method: ${method}"
 #     python evaluate_mplugowl_pope.py \
 #         --model_path "/root/autodl-tmp/models/MAGAer13/mplug-owl-llama-7b" \
 #         --question_file "/root/Auto-Probe/experiments/results/coco/llava/pope/coco_pope_${method}.json" \
@@ -34,7 +34,7 @@
 # done
 # methods=("popular" "random" "adversarial")
 # for method in "${methods[@]}"; do
-#     echo "测试mplug_owl2 POPE方法: ${method}"
+#     echo "Testing mplug_owl2 POPE method: ${method}"
 #     python evaluate_mplugowl2_pope.py \
 #         --model_path "/root/autodl-tmp/models/MAGAer13/mplug-owl2-llama2-7b" \
 #         --question_file "/root/Auto-Probe/experiments/results/coco/llava/pope/coco_pope_${method}.json" \
@@ -46,7 +46,7 @@
 
 methods=("popular" "random" "adversarial")
 for method in "${methods[@]}"; do
-    echo "测试minigpt4_v2 POPE方法: ${method}"
+    echo "Testing minigpt4_v2 POPE method: ${method}"
     python evaluate_minigpt4_v2_pope.py \
         --minigpt4_cfg_path /root/Auto-Probe/MiniGPT-4/eval_configs/minigptv2_eval.yaml \
         --model_checkpoint_path /root/autodl-tmp/models/checkpoint_stage3.pth \

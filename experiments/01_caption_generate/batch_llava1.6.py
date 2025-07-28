@@ -11,119 +11,105 @@ from PIL import Image
 from tqdm import tqdm
 from datetime import datetime
 
-# ### MODIFIED ###: 引入 LLaVA 1.6 的 transformers 库
 from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
 
 
-# --- Helper functions ---
-
-# ========================================================================================
-# --- UNMODIFIED FUNCTION START ---
-# 该函数大部分保留，仅更新了描述和一些模型特定的默认值
-# ========================================================================================
 def parse_args_and_config():
-    """
-    解析命令行参数和YAML配置文件。
-    配置参数被拆分为 model, data, generation, inference, other 等部分。
-    CLI参数可以覆盖YAML中的配置。
-    """
-    parser = argparse.ArgumentParser(description="使用 LLaVA 1.6 模型为一批图片生成描述或提取实体")
-    parser.add_argument("--config", type=str, required=True, help="YAML配置文件路径。")
+    """Parse command line arguments and YAML configuration file."""
+    parser = argparse.ArgumentParser(description="Generate captions or extract entities from images using LLaVA 1.6 model")
+    parser.add_argument("--config", type=str, required=True, help="Path to YAML configuration file")
     
-    # 添加CLI参数以覆盖YAML中的关键设置
-    parser.add_argument("--model_path", type=str, default=None, help="覆盖YAML中的模型路径")
-    parser.add_argument("--image_dir", type=str, default=None, help="覆盖YAML中的图像目录路径")
-    parser.add_argument("--output_dir", type=str, default=None, help="覆盖YAML中的输出目录路径")
+    # Add CLI arguments to override key YAML settings
+    parser.add_argument("--model_path", type=str, default=None, help="Override model path from YAML")
+    parser.add_argument("--image_dir", type=str, default=None, help="Override image directory from YAML")
+    parser.add_argument("--output_dir", type=str, default=None, help="Override output directory from YAML")
     
     cli_args = parser.parse_args()
 
-    # --- 加载YAML文件 ---
+    # Load YAML configuration file
     config_path = cli_args.config
     if not os.path.exists(config_path):
-        raise FileNotFoundError(f"配置文件未找到: {config_path}")
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
     with open(config_path, 'r', encoding='utf-8') as f:
         config_data = yaml.safe_load(f)
     
-    # 根键名可以保持不变，也可以按需修改
     config = config_data.get('01_caption_generate')
     if config is None:
-        raise ValueError(f"在配置文件 '{config_path}' 中未找到 '01_caption_generate' 部分。")
+        raise ValueError(f"'01_caption_generate' section not found in config file '{config_path}'")
 
-    # --- 合并配置 (CLI优先) ---
+    # Merge configuration (CLI takes priority)
     args = argparse.Namespace(**vars(cli_args))
 
-    # --- 模型配置 ---
+    # Model configuration
     model_config = config.get('model', {})
     args.model_path = cli_args.model_path if cli_args.model_path else model_config.get('path')
     args.model_name = model_config.get('name', os.path.basename(args.model_path) if args.model_path else 'unknown_model')
 
-    # --- 数据配置 ---
+    # Data configuration
     data_config = config.get('data', {})
     args.image_dir = cli_args.image_dir if cli_args.image_dir else data_config.get('image_dir')
     args.output_dir = cli_args.output_dir if cli_args.output_dir else data_config.get('output_dir')
     args.selected_images_file = data_config.get('selected_images_file', None)
     
-    # --- 生成逻辑配置 ---
+    # Generation configuration
     generation_config = config.get('generation', {})
     args.num_images_to_process = generation_config.get('num_images_to_process', 200)
     args.num_epochs_per_prompt_set = generation_config.get('num_epochs_per_prompt_set', 1)
     args.json_parse_retries = generation_config.get('json_parse_retries', 3)
     
-    # --- 推理配置 (适配 LLaVA 1.6) ---
+    # Inference configuration
     inference_config = config.get('inference', {})
     args.temperature = inference_config.get('temperature', 1.0)
     args.top_p = inference_config.get('top_p', 1.0)
     args.max_tokens = inference_config.get('max_tokens', 1024)
     
-    # --- 其他配置 ---
+    # Other configuration
     other_config = config.get('other', {})
     args.device = other_config.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
     args.seed = other_config.get('seed', 42)
     args.log_level = other_config.get('log_level', 'INFO')
 
-    # --- 提示词组合 (脚本特有) ---
+    # Prompt sets configuration
     if 'prompt_sets' not in config:
-        raise ValueError("YAML配置 '01_caption_generate' 部分必须包含 'prompt_sets'。")
+        raise ValueError("'prompt_sets' must be included in '01_caption_generate' section of YAML config")
     args.prompt_set_configs_raw = config['prompt_sets']
     
-    # --- 记录与验证 ---
+    # Validation
     args.config_file_path = config_path
 
     if not args.output_dir:
-        raise ValueError("必须在YAML的'data'部分或通过--output_dir指定'output_dir'。")
+        raise ValueError("'output_dir' must be specified in YAML 'data' section or via --output_dir")
     if not args.model_path:
-        raise ValueError("必须在YAML的'model'部分或通过--model_path指定'model_path'。")
+        raise ValueError("'model_path' must be specified in YAML 'model' section or via --model_path")
     if not args.image_dir:
-        raise ValueError("必须在YAML的'data'部分或通过--image_dir指定'image_dir'。")
+        raise ValueError("'image_dir' must be specified in YAML 'data' section or via --image_dir")
 
     return args
 
-# ======================================================================================
-# --- MODIFIED FUNCTION START ---
-# 该函数被修改，不再强制要求 system_prompt 必须存在
-# ======================================================================================
+
 def load_and_validate_prompt_sets(raw_prompt_set_configs):
+    """Load and validate prompt sets configuration."""
     loaded_prompt_sets = []
-    if not isinstance(raw_prompt_set_configs, list): raise ValueError("'prompt_sets' must be a list.")
+    if not isinstance(raw_prompt_set_configs, list): 
+        raise ValueError("'prompt_sets' must be a list")
     
     for i, ps_config in enumerate(raw_prompt_set_configs):
-        if not isinstance(ps_config, dict): raise ValueError(f"Item {i+1} in 'prompt_sets' must be a dict.")
+        if not isinstance(ps_config, dict): 
+            raise ValueError(f"Item {i+1} in 'prompt_sets' must be a dict")
         
         name = ps_config.get('name', f"prompt_set_{i+1}")
-        # system_prompt 现在是可选的
-        system_prompt = ps_config.get('system_prompt')
+        system_prompt = ps_config.get('system_prompt')  # Optional
         user_prompts = ps_config.get('user_prompts')
         parse_json = ps_config.get('parse_json_output', False)
 
-        # 移除了对 system_prompt 的强制检查
-
         if not user_prompts or not isinstance(user_prompts, list) or not all(isinstance(q, str) for q in user_prompts):
-            raise ValueError(f"Prompt set '{name}' 必须包含一个字符串列表类型的 'user_prompts'。")
-        if not isinstance(parse_json, bool): raise ValueError(f"'{name}': parse_json_output must be boolean.")
+            raise ValueError(f"Prompt set '{name}' must contain 'user_prompts' as a list of strings")
+        if not isinstance(parse_json, bool): 
+            raise ValueError(f"'{name}': parse_json_output must be boolean")
         
         loaded_prompt_sets.append({
             "name": name,
-            "system_prompt": system_prompt, # 值为 None 或字符串
+            "system_prompt": system_prompt,
             "user_prompts": user_prompts,
             "parse_json_output": parse_json,
         })
@@ -131,47 +117,60 @@ def load_and_validate_prompt_sets(raw_prompt_set_configs):
 
 
 def setup_logger(output_dir_path, log_level_str):
+    """Setup logging configuration."""
     logger = logging.getLogger("llava_1_6_batch_process")
-    if logger.hasHandlers(): logger.handlers.clear()
-    try: level = getattr(logging, log_level_str.upper())
-    except AttributeError: print(f"Warning: Invalid log_level '{log_level_str}'. Defaulting to INFO."); level = logging.INFO
+    if logger.hasHandlers(): 
+        logger.handlers.clear()
+    try: 
+        level = getattr(logging, log_level_str.upper())
+    except AttributeError: 
+        print(f"Warning: Invalid log_level '{log_level_str}'. Defaulting to INFO.")
+        level = logging.INFO
     logger.setLevel(level)
     formatter = logging.Formatter('%(asctime)s-%(name)s-%(levelname)s-%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     log_file = os.path.join(output_dir_path, "batch_process_llava_1_6.log")
-    file_handler = logging.FileHandler(log_file, encoding='utf-8'); file_handler.setFormatter(formatter)
-    console_handler = logging.StreamHandler(); console_handler.setFormatter(formatter)
-    logger.addHandler(file_handler); logger.addHandler(console_handler)
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setFormatter(formatter)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
     return logger
 
+
 def select_random_images(image_dir, num_images, seed, logger=None):
+    """Select random images from directory."""
     start_time = time.time()
-    if logger: logger.info(f"Starting image selection from {image_dir} with seed: {seed}")
+    if logger: 
+        logger.info(f"Starting image selection from {image_dir} with seed: {seed}")
     random.seed(seed)
     all_image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    if logger: logger.info(f"Found {len(all_image_files)} images in the directory.")
+    if logger: 
+        logger.info(f"Found {len(all_image_files)} images in the directory")
 
     if not all_image_files:
-        if logger: logger.error(f"No supported image files found in {image_dir}.")
+        if logger: 
+            logger.error(f"No supported image files found in {image_dir}")
         return [], set()
 
     if len(all_image_files) > num_images:
         image_files = random.sample(all_image_files, num_images)
-        if logger: logger.info(f"Randomly selected {len(image_files)} images out of {len(all_image_files)}.")
+        if logger: 
+            logger.info(f"Randomly selected {len(image_files)} images out of {len(all_image_files)}")
     else:
         image_files = all_image_files
-        if logger: logger.info(f"Using all {len(image_files)} images from the directory (requested {num_images}).")
+        if logger: 
+            logger.info(f"Using all {len(image_files)} images from the directory (requested {num_images})")
             
     selected_images_set = set(image_files)
     end_time = time.time()
-    if logger: logger.info(f"Image selection completed in {end_time - start_time:.2f} seconds.")
+    if logger: 
+        logger.info(f"Image selection completed in {end_time - start_time:.2f} seconds")
     return image_files, selected_images_set
 
 
-# ======================================================================================
-# --- MODIFIED FUNCTION START ---
-# 该函数被修改，以动态构建对话列表，从而支持可选的 system_prompt
-# ======================================================================================
 def process_images_for_all_prompt_sets(image_files, image_dir, model, processor, global_args, loaded_prompt_sets, current_output_dir, logger=None):
+    """Process images using all configured prompt sets."""
     master_results_for_individual_files = {ps_config["name"]: [] for ps_config in loaded_prompt_sets}
     
     consolidated_desc_by_image = {}
@@ -181,43 +180,50 @@ def process_images_for_all_prompt_sets(image_files, image_dir, model, processor,
     images_with_catastrophic_errors_count = 0
     total_script_start_time = time.time()
 
-    if logger: logger.info(f"Beginning processing for {len(image_files)} images across {len(loaded_prompt_sets)} prompt sets.")
+    if logger: 
+        logger.info(f"Beginning processing for {len(image_files)} images across {len(loaded_prompt_sets)} prompt sets")
 
-    # 准备固定的生成参数
+    # Prepare generation parameters
     generate_kwargs = {
         'do_sample': global_args.temperature > 0,
         'temperature': global_args.temperature,
         'top_p': global_args.top_p,
         'max_new_tokens': global_args.max_tokens,
     }
-    if logger: logger.info(f"Generation parameters: {generate_kwargs}")
+    if logger: 
+        logger.info(f"Generation parameters: {generate_kwargs}")
 
     for img_idx, img_file in enumerate(tqdm(image_files, desc="Processing Images Overall")):
         image_path = os.path.join(image_dir, img_file)
-        if logger: logger.info(f"--- Processing Image {img_idx+1}/{len(image_files)}: {img_file} ---")
+        if logger: 
+            logger.info(f"--- Processing Image {img_idx+1}/{len(image_files)}: {img_file} ---")
         
         current_image_had_catastrophic_error = False
         try:
             img_load_start_time = time.time()
-            if logger: logger.debug(f"Loading image: {image_path}")
+            if logger: 
+                logger.debug(f"Loading image: {image_path}")
             pil_image = Image.open(image_path).convert('RGB')
-            if logger: logger.debug(f"Image loaded in {time.time() - img_load_start_time:.2f}s")
+            if logger: 
+                logger.debug(f"Image loaded in {time.time() - img_load_start_time:.2f}s")
 
             for ps_config in loaded_prompt_sets:
                 ps_name = ps_config["name"]
                 is_json_method_ps = ps_config['parse_json_output']
                 
-                if logger: logger.info(f"  Processing image '{img_file}' with prompt set: '{ps_name}' (Method: {'entity2entity' if is_json_method_ps else 'caption2entity'})")
+                if logger: 
+                    logger.info(f"  Processing image '{img_file}' with prompt set: '{ps_name}' (Method: {'entity2entity' if is_json_method_ps else 'caption2entity'})")
 
                 captions_for_this_ps_image = []
                 objects_for_this_ps_image_raw = []
                 successful_epochs_this_ps = 0
 
                 for epoch in range(global_args.num_epochs_per_prompt_set):
-                    if logger: logger.debug(f"      Epoch {epoch+1}/{global_args.num_epochs_per_prompt_set}")
+                    if logger: 
+                        logger.debug(f"      Epoch {epoch+1}/{global_args.num_epochs_per_prompt_set}")
                     
                     for user_prompt in ps_config['user_prompts']:
-                        # --- 核心修改：动态构建对话，支持可选的 system_prompt ---
+                        # Dynamically build conversation with optional system prompt
                         conversation = [
                             {"role": "user", "content": [
                                 {"type": "text", "text": user_prompt},
@@ -496,9 +502,11 @@ def main():
 
     except Exception as e:
         print(f"An unexpected error occurred at the main level: {e}")
-        if logger: logger.error("An unexpected error occurred at the main level.", exc_info=True)
+        if logger: 
+            logger.error("An unexpected error occurred at the main level.", exc_info=True)
         import traceback
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     main()

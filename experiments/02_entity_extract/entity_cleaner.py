@@ -4,11 +4,10 @@ import time
 import logging
 import argparse
 import os
-from typing import Dict, List, Any, Optional, Tuple # Added Tuple
+from typing import Dict, List, Any, Optional, Tuple
 from tqdm import tqdm
 import copy
 
-# API clients
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
@@ -19,7 +18,7 @@ except ImportError:
 
 class EntityCleaner:
     def __init__(self, config_path: str = "config_entity_cleaner.yaml"):
-        """初始化实体清洗器"""
+        """Initialize entity cleaner."""
         self.config = self._load_config(config_path)
         self.logger = self._setup_logger()
         self.system_prompt = self._load_system_prompt()
@@ -27,21 +26,20 @@ class EntityCleaner:
         self.client = self._setup_api_client()
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """加载配置文件"""
+        """Load configuration file."""
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
-        # Using user's specified config key
         if '02_entity_extract_entity_cleaner' not in config:
             raise ValueError("Configuration must contain '02_entity_extract_entity_cleaner' section")
 
         return config['02_entity_extract_entity_cleaner']
 
     def _setup_logger(self) -> logging.Logger:
-        """设置日志记录器"""
+        """Setup logger."""
         log_config = self.config.get('logging', {})
         log_level = getattr(logging, log_config.get('level', 'INFO').upper())
 
@@ -67,7 +65,7 @@ class EntityCleaner:
         return logger
 
     def _load_prompt_from_file(self, file_path: str) -> str:
-        """从文件加载prompt内容"""
+        """Load prompt content from file."""
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read().strip()
         if not content:
@@ -75,7 +73,7 @@ class EntityCleaner:
         return content
 
     def _load_system_prompt(self) -> Optional[str]:
-        """加载system prompt"""
+        """Load system prompt."""
         system_prompt_path = self.config.get('llm', {}).get('system_prompt_path')
         if not system_prompt_path:
             self.logger.info("No system_prompt_path provided. Proceeding without a specific system prompt.")
@@ -92,7 +90,7 @@ class EntityCleaner:
             raise
 
     def _load_user_prompt_template(self) -> str:
-        """加载user prompt模板"""
+        """Load user prompt template."""
         user_prompt_path = self.config.get('llm', {}).get('user_prompt_path')
         if not user_prompt_path:
             self.logger.critical("'user_prompt_path' is missing in the configuration.")
@@ -108,7 +106,7 @@ class EntityCleaner:
             raise
 
     def _setup_api_client(self):
-        """设置API客户端"""
+        """Setup API client."""
         api_config = self.config['llm']
         provider = api_config['provider'].lower()
 
@@ -129,19 +127,16 @@ class EntityCleaner:
             raise ValueError(f"Unsupported API provider: {provider}. Only 'openai' is supported.")
 
     def _call_llm_api(self, entity_list: List[str]) -> Tuple[Optional[List[str]], Optional[str]]:
-        """
-        调用LLM API进行实体清洗.
-        返回: Tuple (解析后的列表 或 None, 原始响应文本 或 None)
-        """
+        """Call LLM API for entity cleaning. Returns (parsed_list, raw_response)."""
         api_config = self.config['llm']
         
-        # Ensure entity_list is a list of strings for JSON dump
+        # Validate entity_list format
         if not isinstance(entity_list, list) or not all(isinstance(e, str) for e in entity_list):
             self.logger.error(f"Invalid entity_list format for LLM call: {entity_list}")
             return None, None
 
         if "{entity_list}" not in self.user_prompt_template:
-            self.logger.error("User prompt template is missing the '{entity_list}' placeholder. Entity cleaning might fail or produce poor results.")
+            self.logger.error("User prompt template is missing the '{entity_list}' placeholder.")
 
         try:
             user_prompt = self.user_prompt_template.format(entity_list=json.dumps(entity_list, ensure_ascii=False))
@@ -196,8 +191,8 @@ class EntityCleaner:
         return None, last_raw_response # Should only be reached if max_retries is 0 or less
 
     def _process_cleaned_results(self, original_objects: List[str],
-                                 cleaned_objects: List[str]) -> Dict[str, Any]: # Return type includes Any for entity_mapping
-        """处理清洗结果，生成映射关系"""
+                                 cleaned_objects: List[str]) -> Dict[str, Any]:
+        """Process cleaning results and generate mapping relationships."""
         if not isinstance(original_objects, list) or not isinstance(cleaned_objects, list):
              self.logger.warning(f"Invalid input types for _process_cleaned_results. Original: {type(original_objects)}, Cleaned: {type(cleaned_objects)}")
              return {"candidate_objects": [], "removed_entities": original_objects if isinstance(original_objects, list) else [], "entity_mapping": {}}
@@ -232,13 +227,12 @@ class EntityCleaner:
 
     def _update_sg_attributes(self, sg_attributes: Dict[str, List[str]],
                               removed_entities: List[str]) -> Dict[str, List[str]]:
-        """更新sg_attributes，删除被标记为REMOVE的实体"""
+        """Update sg_attributes by removing entities marked as REMOVE."""
         if not sg_attributes:
             return {}
         if not isinstance(sg_attributes, dict):
             self.logger.warning(f"sg_attributes is not a dict: {sg_attributes}. Returning original.")
             return sg_attributes
-
 
         updated_sg_attributes = {}
         removed_entities_set = set(removed_entities)
@@ -251,7 +245,7 @@ class EntityCleaner:
         return updated_sg_attributes
 
     def process_single_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
-        """处理单个数据项，包括空实体结果的重试，并添加LLM原始回复"""
+        """Process single data item with retry for empty results and add LLM raw response."""
         image_name = item.get('image', 'unknown')
         self.logger.debug(f"Processing item: {image_name}")
 
@@ -345,7 +339,7 @@ class EntityCleaner:
         return final_output_dict
 
     def _save_compact_json(self, data_to_save: List[Dict[str, Any]], output_filepath: str):
-        """以紧凑格式保存JSON文件，特定列表字段单行显示"""
+        """Save JSON file in compact format with specific list fields on single lines."""
         items_to_format = copy.deepcopy(data_to_save)
         placeholder_map = {}
         placeholder_idx_obj = [0] 
@@ -398,7 +392,7 @@ class EntityCleaner:
 
     def process_file(self, input_file: Optional[str] = None,
                      output_file: Optional[str] = None) -> None:
-        """处理整个文件"""
+        """Process entire file"""
         input_path = input_file if input_file is not None else self.config['io']['input_file']
         output_path = output_file if output_file is not None else self.config['io']['output_file']
 

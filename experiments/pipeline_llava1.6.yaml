@@ -24,13 +24,13 @@
     log_level: "INFO"
   prompt_sets:
     - name: "mild_300"
-      parse_json_output: false # 设为 false，因为我们期望得到的是一段自然语言描述
+      parse_json_output: false  # Set to false for natural language description output
       system_prompt: |
         You are a creative-confused object finder. When describing images, detect liberally and list all: visible items, contextual objects, imaginative additions.
       user_prompts:
         - "Provide a detailed description of this image."
     # - name: "base_300"
-    #   parse_json_output: false # 设为 false，因为我们期望得到的是一段自然语言描述
+    #   parse_json_output: false # Set to false for natural language description output
     #   system_prompt: ""
     #   user_prompts:
     #     - "Provide a detailed description of this image."
@@ -53,7 +53,7 @@
     system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/extract_system_prompt.txt" # Example: No system prompt, or path to an empty file, or comment out line.
     user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/extract_user_prompt.txt"
 
-  # scene_graph 配置已移除，因为不再使用场景图模型
+  # scene_graph configuration removed as scene graph model is no longer used
 
 02_entity_extract_entity_cleaner:
   # Logging Configuration
@@ -63,26 +63,26 @@
   
   # API Configuration
   llm:
-    provider: "openai"  # 只支持openai
+    provider: "openai"  # Only supports openai
     model: "qwen-max"
     api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     max_retries: 3
     timeout: 30
-    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_system_prompt.txt"  # 可选
-    user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_user_prompt.txt"      # 必需
+    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_system_prompt.txt"  # Optional
+    user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_user_prompt.txt"      # Required
     
   # Input/Output Configuration  
   io:
-    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities_m1.json"  # 可以留空，通过命令行指定
-    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"  # 可以留空，通过命令行指定
+    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities_m1.json"  # Can be left empty, specify via command line
+    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"  # Can be left empty, specify via command line
     
   # Processing Configuration
   processing:
-    batch_size: 10  # 批量处理大小
-    delay_between_requests: 1.0  # 请求间隔（秒）
-    delay_between_requests: 1.0 # 这是处理不同JSON条目之间的延时 (已存在)
-    delay_between_empty_result_retries: 1.0 # 这是单个条目因结果为空而重试时的延时 (新)
+    batch_size: 10  # Batch processing size
+    delay_between_requests: 1.0  # Request interval (seconds)
+    delay_between_requests: 1.0 # Delay between processing different JSON entries (already exists)
+    delay_between_empty_result_retries: 1.0 # Delay when retrying due to empty results for a single entry (new)
     
 02_entity_extract_owlv2_verifier:
   logging:
@@ -91,18 +91,18 @@
   owl_vit:
     model_path: "/root/autodl-tmp/models/google/owlv2-large-patch14-ensemble" # MANDATORY: Local path to OWL-ViT model directory
                                                           # Example: "./models/owlv2-base-patch16-ensemble"
-    # 新增阈值:
-    # 1. 初始检测阈值 (用于OWL-ViT后处理器，获取尽可能多的带分数的检测结果)
-    #    建议设置一个较低的值，以便后续用 T_upper 和 T_lower 进行筛选。
+    # New thresholds:
+    # 1. Initial detection threshold (for OWL-ViT post-processor, to get as many scored detection results as possible)
+    #    It's recommended to set a low value so that subsequent filtering can be done with T_upper and T_lower.
     initial_detection_threshold: 0
     
-    # 2. 上限置信阈值 (T_upper)
-    #    当OWL-ViT对一个物体的检测置信度 >= T_upper 时，才认为该物体真实存在于图像中 (成为 Oi)。
+    # 2. Upper confidence threshold (T_upper)
+    #    When OWL-ViT's detection confidence for an object >= T_upper, the object is considered to truly exist in the image (becomes Oi).
     upper_confidence_threshold: 0.516
     
-    # 3. 下限置信阈值 (T_lower)
-    #    当OWL-ViT对一个物体的检测置信度 <= T_lower (或未检测到，得分为0) 时，
-    #    才认为该物体确实不在图像中 (如果LVLM提及了它，它就成为 Oh)。
+    # 3. Lower confidence threshold (T_lower)
+    #    When OWL-ViT's detection confidence for an object <= T_lower (or not detected, score is 0),
+    #    the object is considered to be truly absent from the image (if LVLM mentions it, it becomes Oh).
     lower_confidence_threshold: 0.108 
     
 
@@ -133,46 +133,46 @@
     delay_between_requests: 1.0 # Delay between API calls in seconds
 
 03_dataset_construct:
-  # 输入/输出路径配置
+  # Input/Output path configuration
   io:
-    # 此文件是 extract.sh 脚本的最终输出 (包含了OWL-ViT校验结果)
+    # This file is the final output of the extract.sh script (containing OWL-ViT validation results)
     input_verified_entities_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/c2e_owl_verified_final.json"
-    # TIDE数据集最终的输出路径
+    # Final output path for TIDE dataset
     output_tide_dataset_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/03_dataset_construct/tide.json"
-    # (可选) 是否追加到输出文件，如果为true且文件已存在，则追加。如果Python脚本也接受CLI --append，CLI优先。
+    # (Optional) Whether to append to output file, if true and file exists, append. If Python script also accepts CLI --append, CLI takes priority.
     # append_to_output: false 
 
-  # 问题生成控制
+  # Question generation control
   generation_controls:
-    # true 表示生成基础的是/否问题 ($Q$)
+    # true means generate basic yes/no questions ($Q$)
     generate_basic_questions: true 
-    #   如果 generate_basic_questions 为 true，以下两个参数控制具体为哪些实体生成
-    #   true 表示为 hallucinated_objects ($O_h$) 生成 label:no 的问题
+    #   If generate_basic_questions is true, the following two parameters control which entities to generate for
+    #   true means generate label:no questions for hallucinated_objects ($O_h$)
     include_basic_hallucinated: true 
-    #   true 表示为 ground_truth_objects ($O_i$, 且未在描述中出现的) 生成 label:yes 的问题
+    #   true means generate label:yes questions for ground_truth_objects ($O_i$ that do not appear in description)
     include_basic_ignored: true       
 
-    # true 表示生成加强版的 AttriBait 问题 ($Q_p$)
+    # true means generate enhanced AttriBait questions ($Q_p$)
     generate_enhanced_questions: true
 
-  # "enhanced" (AttriBait) 问题生成专用配置
+  # "enhanced" (AttriBait) question generation specific configuration
   enhanced_question_generation:
-    # OpenAI API Key。如果为空字符串，Python脚本会尝试读取 OPENAI_API_KEY 环境变量。
+    # OpenAI API Key. If empty string, Python script will try to read OPENAI_API_KEY environment variable.
     # api_key: "sk-xSWJbfDMwkeLPzp0vvdZn7sqY1T8qYL630bv25oacwyfh59G" 
     model: "qwen-max"
     api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     
-    # 两个不同的Prompt模板文件路径
+    # Two different prompt template file paths
     system_prompt_file: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/system_prompt.txt"
     prompt_template_with_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_with_attrs.txt"
     prompt_template_without_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_without_attrs.txt"
     
-    max_retries: 3         # API调用最大重试次数
+    max_retries: 3         # Maximum number of API call retries
     max_rerequest_attempts: 5
-    retry_delay_seconds: 2 # 重试前等待秒数
+    retry_delay_seconds: 2 # Wait seconds before retry
 
-  # 日志配置
+  # Log configuration
   logging:
     level: "INFO" # e.g., DEBUG, INFO, WARNING, ERROR
 
@@ -186,15 +186,15 @@
     initial_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide.json"
     output_refined_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide_refined.json"
     image_dir: "/root/autodl-tmp/datasets/coco/val2014" 
-    output_dir: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct" # 日志等文件的根输出目录
+    output_dir: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct" # Root output directory for logs and other files
 
   refinement:
-    n_rounds: 3 # 进行3轮评估以尝试触发幻觉
+    n_rounds: 3 # Perform 3 rounds of evaluation to attempt triggering hallucinations
 
-  inference: # 推理参数，与评估脚本类似
-    temperature: 1.0 # 对于判断是否幻觉，较低的温度可能更稳定
-    top_p: 1.0 # 通常与 temperature > 0 配合使用
-    max_tokens: 64 # Yes/No 或 A/B/C 的答案通常较短
+  inference: # Inference parameters, similar to evaluation script
+    temperature: 1.0 # For determining whether hallucination occurs, lower temperature might be more stable
+    top_p: 1.0 # Usually used together with temperature > 0
+    max_tokens: 64 # Yes/No or A/B/C answers are usually shorter
 
   other:
     device: "cuda" # "cuda" or "cpu"
@@ -208,24 +208,24 @@
     base: null
     name: llava-v1.6-vicuna-7b
 
-  # 数据配置
+  # Data configuration
   data:
     tide_dataset_file: "/root/Auto-Probe/experiments/outputs/test/TIDE_questions_dataset.json" 
-    # 必填: TIDE数据集中问题引用的图像所在的目录路径
-    image_dir: "/root/autodl-tmp/datasets/MILD" # 或者您的 COCO/VQAv2 图片路径
-    # 评估结果输出目录
+    # Required: Directory path where images referenced in TIDE dataset questions are located
+    image_dir: "/root/autodl-tmp/datasets/MILD" # Or your COCO/VQAv2 image path
+    # Evaluation results output directory
     output_dir: "/root/Auto-Probe/experiments/outputs/test"
-    # 输出文件名
+    # Output filename
     output_filename: "llava_tide_eval_results.json"
 
-  # LLaVA模型推理参数
+  # LLaVA model inference parameters
   inference:
     temperature: 1.0       
     top_p: 1.0              
-    max_tokens: 64     # 模型生成答案时的最大新token数 (原脚本为512，对于VQA答案可以小一些)
+    max_tokens: 64     # Maximum new tokens when model generates answers (original script was 512, can be smaller for VQA answers)
 
   other:
-    device: "cuda"  # 如果没有GPU，改为"cpu"
+    device: "cuda"  # If no GPU, change to "cpu"
     seed: 42
-    log_level: "INFO"  # 可选：DEBUG（详细日志）, INFO, WARNING, ERROR
-    use_timestamp: true  # 建议保持true，避免覆盖之前的结果
+    log_level: "INFO"  # Optional: DEBUG (detailed logs), INFO, WARNING, ERROR
+    use_timestamp: true  # Recommend keeping true to avoid overwriting previous results
