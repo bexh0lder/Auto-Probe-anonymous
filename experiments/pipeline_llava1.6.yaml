@@ -4,8 +4,8 @@
     name: llava-1.6-vicuna-7b
 
   data:
-    image_dir: "/root/autodl-tmp/datasets/coco/val2014"
-    output_dir: "/root/Auto-Probe/experiments/results/coco/mplugwol"
+    # image_dir: "/root/autodl-tmp/datasets/coco/val2014"
+    # output_dir: "/root/Auto-Probe/experiments/results/coco/mplugwol"
     selected_images_file: "/root/Auto-Probe/POPE/selected_images.json" 
 
   generation:
@@ -22,159 +22,115 @@
     seed: 42
     device: "cuda"
     log_level: "INFO"
+    
   prompt_sets:
     - name: "mild_300"
-      parse_json_output: false  # Set to false for natural language description output
+      parse_json_output: false
       system_prompt: |
         You are a creative-confused object finder. When describing images, detect liberally and list all: visible items, contextual objects, imaginative additions.
       user_prompts:
         - "Provide a detailed description of this image."
-    # - name: "base_300"
-    #   parse_json_output: false # Set to false for natural language description output
-    #   system_prompt: ""
-    #   user_prompts:
-    #     - "Provide a detailed description of this image."
 
 02_entity_extract_caption_extractor:
   logging:
-    level: "INFO" # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    level: "INFO"
 
   io:
-    input_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities.json" # Path to your input file with captions
-    output_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json" # Output of this script
+    # input_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities.json"
+    # output_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"
 
   llm:
-    # api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
-    # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    # model_name: "qwen-plus-2025-01-25" # Or "qwen-max", "gpt-4", etc. compatible with your endpoint
-    api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    model_name: "qwen-max" # Or "qwen-max", "gpt-4", etc. compatible with your endpoint
-    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/extract_system_prompt.txt" # Example: No system prompt, or path to an empty file, or comment out line.
+    api_key: "sk-xxxx"
+    base_url: "https://api.openai.com/v1"
+    model_name: "gpt-4o"
+    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/extract_system_prompt.txt"
     user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/extract_user_prompt.txt"
 
-  # scene_graph configuration removed as scene graph model is no longer used
-
 02_entity_extract_entity_cleaner:
-  # Logging Configuration
   logging:
     level: "INFO"
-    # log_file: "entity_cleaner.log"
   
-  # API Configuration
   llm:
-    provider: "openai"  # Only supports openai
-    model: "qwen-max"
-    api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    provider: "openai"
+    model: "gpt-4o"
+    api_key: "sk-xxxx"
+    base_url: "https://api.openai.com/v1"
     max_retries: 3
     timeout: 30
-    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_system_prompt.txt"  # Optional
-    user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_user_prompt.txt"      # Required
+    system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_system_prompt.txt"
+    user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_user_prompt.txt"
     
-  # Input/Output Configuration  
   io:
-    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities_m1.json"  # Can be left empty, specify via command line
-    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"  # Can be left empty, specify via command line
+    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities_m1.json"
+    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"
     
-  # Processing Configuration
   processing:
-    batch_size: 10  # Batch processing size
-    delay_between_requests: 1.0  # Request interval (seconds)
-    delay_between_requests: 1.0 # Delay between processing different JSON entries (already exists)
-    delay_between_empty_result_retries: 1.0 # Delay when retrying due to empty results for a single entry (new)
+    batch_size: 10
+    delay_between_requests: 1.0
+    delay_between_requests: 1.0
+    delay_between_empty_result_retries: 1.0
     
 02_entity_extract_owlv2_verifier:
   logging:
-    level: INFO  # DEBUG, INFO, WARNING, ERROR
+    level: INFO
 
   owl_vit:
-    model_path: "/root/autodl-tmp/models/google/owlv2-large-patch14-ensemble" # MANDATORY: Local path to OWL-ViT model directory
-                                                          # Example: "./models/owlv2-base-patch16-ensemble"
-    # New thresholds:
-    # 1. Initial detection threshold (for OWL-ViT post-processor, to get as many scored detection results as possible)
-    #    It's recommended to set a low value so that subsequent filtering can be done with T_upper and T_lower.
+    model_path: "/root/autodl-tmp/models/google/owlv2-large-patch14-ensemble"
     initial_detection_threshold: 0
-    
-    # 2. Upper confidence threshold (T_upper)
-    #    When OWL-ViT's detection confidence for an object >= T_upper, the object is considered to truly exist in the image (becomes Oi).
     upper_confidence_threshold: 0.516
-    
-    # 3. Lower confidence threshold (T_lower)
-    #    When OWL-ViT's detection confidence for an object <= T_lower (or not detected, score is 0),
-    #    the object is considered to be truly absent from the image (if LVLM mentions it, it becomes Oh).
     lower_confidence_threshold: 0.108 
     
-
-  # Input/Output file paths for batch processing
   io:
-    image_base_dir: "/root/autodl-tmp/datasets/coco/val2014"                     # Path to the directory containing images
-    output_json_path: "output_data/owl_verified_batch.json"  # Path to save the output
+    image_base_dir: "/root/autodl-tmp/datasets/coco/val2014"
+    output_json_path: "output_data/owl_verified_batch.json"
 
 02_entity_extract_consistency_corrector:
   logging:
-    level: "INFO" # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-    log_file: null # Optional: path to log file, e.g., "/path/to/detection_corrector.log"
+    level: "INFO"
+    log_file: null
 
   io:
-    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1.json" # Path to detection results from OWLv2
-    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1_corrected.json" # Output of corrected results
+    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1.json"
+    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1_corrected.json"
 
   llm:
-    api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    model_name: "qwen-max" # Or "qwen-plus", "gpt-4", etc. compatible with your endpoint
+    api_key: "sk-xxxx"
+    base_url: "https://api.openai.com/v1"
+    model_name: "gpt-4o"
     system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/correct_system_prompt.txt"
     user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/correct_user_prompt.txt"
-    max_retries: 3 # Number of API call retries
-    timeout: 30 # API call timeout in seconds
+    max_retries: 3
+    timeout: 30
 
   processing:
-    delay_between_requests: 1.0 # Delay between API calls in seconds
+    delay_between_requests: 1.0
 
 03_dataset_construct:
-  # Input/Output path configuration
   io:
-    # This file is the final output of the extract.sh script (containing OWL-ViT validation results)
     input_verified_entities_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/c2e_owl_verified_final.json"
-    # Final output path for TIDE dataset
     output_tide_dataset_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/03_dataset_construct/tide.json"
-    # (Optional) Whether to append to output file, if true and file exists, append. If Python script also accepts CLI --append, CLI takes priority.
-    # append_to_output: false 
 
-  # Question generation control
   generation_controls:
-    # true means generate basic yes/no questions ($Q$)
     generate_basic_questions: true 
-    #   If generate_basic_questions is true, the following two parameters control which entities to generate for
-    #   true means generate label:no questions for hallucinated_objects ($O_h$)
     include_basic_hallucinated: true 
-    #   true means generate label:yes questions for ground_truth_objects ($O_i$ that do not appear in description)
     include_basic_ignored: true       
-
-    # true means generate enhanced AttriBait questions ($Q_p$)
     generate_enhanced_questions: true
 
-  # "enhanced" (AttriBait) question generation specific configuration
   enhanced_question_generation:
-    # OpenAI API Key. If empty string, Python script will try to read OPENAI_API_KEY environment variable.
-    # api_key: "sk-xSWJbfDMwkeLPzp0vvdZn7sqY1T8qYL630bv25oacwyfh59G" 
-    model: "qwen-max"
-    api_key: "sk-15bd5638364948be8bf9234a5a501324" # Replace with your actual key
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model: "gpt-4o"
+    api_key: "sk-xxxx"
+    base_url: "https://api.openai.com/v1"
     
-    # Two different prompt template file paths
     system_prompt_file: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/system_prompt.txt"
     prompt_template_with_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_with_attrs.txt"
     prompt_template_without_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_without_attrs.txt"
     
-    max_retries: 3         # Maximum number of API call retries
+    max_retries: 3
     max_rerequest_attempts: 5
-    retry_delay_seconds: 2 # Wait seconds before retry
+    retry_delay_seconds: 2
 
-  # Log configuration
   logging:
-    level: "INFO" # e.g., DEBUG, INFO, WARNING, ERROR
+    level: "INFO"
 
 03_dataset_refinement: 
   model:
@@ -186,18 +142,18 @@
     initial_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide.json"
     output_refined_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide_refined.json"
     image_dir: "/root/autodl-tmp/datasets/coco/val2014" 
-    output_dir: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct" # Root output directory for logs and other files
+    output_dir: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct"
 
   refinement:
-    n_rounds: 3 # Perform 3 rounds of evaluation to attempt triggering hallucinations
+    n_rounds: 3
 
-  inference: # Inference parameters, similar to evaluation script
-    temperature: 1.0 # For determining whether hallucination occurs, lower temperature might be more stable
-    top_p: 1.0 # Usually used together with temperature > 0
-    max_tokens: 64 # Yes/No or A/B/C answers are usually shorter
+  inference:
+    temperature: 1.0
+    top_p: 1.0
+    max_tokens: 64
 
   other:
-    device: "cuda" # "cuda" or "cpu"
+    device: "cuda"
     seed: 42
     log_level: "INFO"
     use_timestamp_in_log_dir: true
@@ -208,24 +164,19 @@
     base: null
     name: llava-v1.6-vicuna-7b
 
-  # Data configuration
   data:
     tide_dataset_file: "/root/Auto-Probe/experiments/outputs/test/TIDE_questions_dataset.json" 
-    # Required: Directory path where images referenced in TIDE dataset questions are located
-    image_dir: "/root/autodl-tmp/datasets/MILD" # Or your COCO/VQAv2 image path
-    # Evaluation results output directory
+    image_dir: "/root/autodl-tmp/datasets/MILD"
     output_dir: "/root/Auto-Probe/experiments/outputs/test"
-    # Output filename
     output_filename: "llava_tide_eval_results.json"
 
-  # LLaVA model inference parameters
   inference:
     temperature: 1.0       
     top_p: 1.0              
-    max_tokens: 64     # Maximum new tokens when model generates answers (original script was 512, can be smaller for VQA answers)
+    max_tokens: 64
 
   other:
-    device: "cuda"  # If no GPU, change to "cpu"
+    device: "cuda"
     seed: 42
-    log_level: "INFO"  # Optional: DEBUG (detailed logs), INFO, WARNING, ERROR
-    use_timestamp: true  # Recommend keeping true to avoid overwriting previous results
+    log_level: "INFO"
+    use_timestamp: true
