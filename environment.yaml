@@ -327,7 +327,7 @@ dependencies:
       - torchvision==0.15.2
       - tornado==6.4.2
       - tqdm==4.67.1
-      - transformers==4.48.0
+      - transformers==4.49.0
       - transformers-stream-generator==0.0.5
       - triton==2.0.0
       - typer==0.15.2

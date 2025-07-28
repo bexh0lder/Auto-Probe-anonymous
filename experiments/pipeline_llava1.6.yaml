@@ -1,12 +1,11 @@
 01_caption_generate:
   model:
-    path: /root/autodl-tmp/models/llava-hf/llava-v1.6-vicuna-7b-hf
-    name: llava-1.6-vicuna-7b
+    path: /root/autodl-tmp/models/llava-hf/llava-v1.6-vicuna-7b-hf # [NECESSARY]
+    name: llava-1.6-vicuna-7b 
 
   data:
-    # image_dir: "/root/autodl-tmp/datasets/coco/val2014"
-    # output_dir: "/root/Auto-Probe/experiments/results/coco/mplugwol"
-    selected_images_file: "/root/Auto-Probe/POPE/selected_images.json" 
+    image_dir: "/root/autodl-tmp/datasets/coco/val2014" # [NECESSARY]
+    selected_images_file: "/root/Auto-Probe/POPE/selected_images.json"  
 
   generation:
     num_images_to_process: 1
@@ -24,7 +23,7 @@
     log_level: "INFO"
     
   prompt_sets:
-    - name: "mild_300"
+    - name: "test_300"
       parse_json_output: false
       system_prompt: |
         You are a creative-confused object finder. When describing images, detect liberally and list all: visible items, contextual objects, imaginative additions.
@@ -34,10 +33,6 @@
 02_entity_extract_caption_extractor:
   logging:
     level: "INFO"
-
-  io:
-    # input_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities.json"
-    # output_json_path: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"
 
   llm:
     api_key: "sk-xxxx"
@@ -52,18 +47,13 @@
   
   llm:
     provider: "openai"
-    model: "gpt-4o"
     api_key: "sk-xxxx"
     base_url: "https://api.openai.com/v1"
+    model: "gpt-4o"
     max_retries: 3
     timeout: 30
     system_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_system_prompt.txt"
     user_prompt_path: "/root/Auto-Probe/experiments/prompts/02_entity_extract/clean_user_prompt.txt"
-    
-  io:
-    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/caption_entities_m1.json"
-    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/candidate_entities.json"
-    
   processing:
     batch_size: 10
     delay_between_requests: 1.0
@@ -75,24 +65,19 @@
     level: INFO
 
   owl_vit:
-    model_path: "/root/autodl-tmp/models/google/owlv2-large-patch14-ensemble"
+    model_path: "/root/autodl-tmp/models/google/owlv2-large-patch14-ensemble" # [NECESSARY]
     initial_detection_threshold: 0
     upper_confidence_threshold: 0.516
     lower_confidence_threshold: 0.108 
     
   io:
-    image_base_dir: "/root/autodl-tmp/datasets/coco/val2014"
+    image_base_dir: "/root/autodl-tmp/datasets/coco/val2014" # [NECESSARY]
     output_json_path: "output_data/owl_verified_batch.json"
 
 02_entity_extract_consistency_corrector:
   logging:
     level: "INFO"
     log_file: null
-
-  io:
-    input_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1.json"
-    output_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_run_20250526_153323/02_entity_extract/c2e_owl_verified_final_1_corrected.json"
-
   llm:
     api_key: "sk-xxxx"
     base_url: "https://api.openai.com/v1"
@@ -106,10 +91,6 @@
     delay_between_requests: 1.0
 
 03_dataset_construct:
-  io:
-    input_verified_entities_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/02_entity_extract/c2e_owl_verified_final.json"
-    output_tide_dataset_file: "/root/Auto-Probe/experiments/results/mild/llava/llava_20250525_132501/03_dataset_construct/tide.json"
-
   generation_controls:
     generate_basic_questions: true 
     include_basic_hallucinated: true 
@@ -117,12 +98,11 @@
     generate_enhanced_questions: true
 
   enhanced_question_generation:
-    model: "gpt-4o"
     api_key: "sk-xxxx"
     base_url: "https://api.openai.com/v1"
+    model: "gpt-4o"
     
     system_prompt_file: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/system_prompt.txt"
-    prompt_template_with_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_with_attrs.txt"
     prompt_template_without_attributes: "/root/Auto-Probe/experiments/prompts/03_dataset_construct/attribait_prompt_without_attrs.txt"
     
     max_retries: 3
@@ -132,43 +112,14 @@
   logging:
     level: "INFO"
 
-03_dataset_refinement: 
-  model:
-    path: /root/autodl-tmp/models/MAGAer13/mplug-owl-llama-7b
-    base: null
-    name: mplug-owl-llama-7b
-
-  data:
-    initial_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide.json"
-    output_refined_tide_dataset_file: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct/tide_refined.json"
-    image_dir: "/root/autodl-tmp/datasets/coco/val2014" 
-    output_dir: "/root/Auto-Probe/experiments/results/coco/llava/llava_coco_run_20250527_172119/03_dataset_construct"
-
-  refinement:
-    n_rounds: 3
-
-  inference:
-    temperature: 1.0
-    top_p: 1.0
-    max_tokens: 64
-
-  other:
-    device: "cuda"
-    seed: 42
-    log_level: "INFO"
-    use_timestamp_in_log_dir: true
-
 04_model_evaluate:
   model:
-    path: /root/autodl-tmp/models/llava-hf/llava-v1.6-vicuna-7b-hf
+    path: /root/autodl-tmp/models/llava-hf/llava-v1.6-vicuna-7b-hf # [NECESSARY]
     base: null
     name: llava-v1.6-vicuna-7b
 
   data:
-    tide_dataset_file: "/root/Auto-Probe/experiments/outputs/test/TIDE_questions_dataset.json" 
-    image_dir: "/root/autodl-tmp/datasets/MILD"
-    output_dir: "/root/Auto-Probe/experiments/outputs/test"
-    output_filename: "llava_tide_eval_results.json"
+    image_dir: "/root/autodl-tmp/datasets/MILD" # [NECESSARY]
 
   inference:
     temperature: 1.0       
