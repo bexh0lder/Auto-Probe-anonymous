@@ -147,7 +147,6 @@ done
 echo "    Screen session ${SCREEN_SESSION_NAME_STEP02} completed."
 
 if [[ ! -f "$STEP02_CORRECTED_ENTITIES_FILE" ]]; then
-    curl -X "POST" "https://sctapi.ftqq.com/SCT189116TXDIE4j8RemGyBR9d116w5FaA.send?title=Step2Error_LLaVA"
     echo "🚨 Critical error: Step 02 final output file not found: ${STEP02_CORRECTED_ENTITIES_FILE}"
     echo "👉 Please check Screen log: ${SCREEN_LOG_FILE_STEP02}"
     exit 1
@@ -180,7 +179,6 @@ echo "    Screen session ${SCREEN_SESSION_NAME_STEP03} completed."
 
 if [[ ! -f "$STEP03_INITIAL_TIDE_DATASET_FILE" ]]; then 
     echo "🚨 Critical error: Step 03 final output file not found: ${STEP03_INITIAL_TIDE_DATASET_FILE}"; 
-    curl -X "POST" "https://sctapi.ftqq.com/SCT189116TXDIE4j8RemGyBR9d116w5FaA.send?title=Step3Error_LLaVA";
     exit 1; 
 fi
 echo "✅ Step 03 completed. TIDE dataset located at: ${STEP03_INITIAL_TIDE_DATASET_FILE}"
@@ -232,7 +230,5 @@ echo "📁 Key output file locations："
 echo "➡️  TIDE dataset at: ${STEP03_INITIAL_TIDE_DATASET_FILE}"
 echo "➡️  Dataset evaluation results at: ${STEP04_OUTPUT_DIR}/${STEP04_EVAL_OUTPUT_FILENAME}"
 echo "➡️  Model evaluation summary appended to: ${RESULTS_CSV_PATH}"
-
-curl -X "POST" "https://sctapi.ftqq.com/SCT189116TXDIE4j8RemGyBR9d116w5FaA.send?title=ExperimentOver_LLaVA"
 
 exit 0
