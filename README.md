@@ -1,6 +1,8 @@
 # Auto-Probe Framework
 
-This documentation presents comprehensive pseudocode algorithms for all framework components, supplemented by key implementation files that demonstrate the core innovations. The pseudocode ensures full algorithmic transparency for reproducibility, while complete source code, pipeline scripts and environment setup will be made available upon paper acceptance.
+This documentation presents comprehensive pseudocode algorithms for all framework components, supplemented by key implementation files that demonstrate the core innovations. The pseudocode ensures full algorithmic transparency for reproducibility.
+
+*Complete source code, pipeline scripts and environment setup will be made available upon paper acceptance.*
 
 Note: Make sure to complete all `[necessary]` fields in the /experiments/pipline_llava1.6.yaml configuration file prior to execution.
 
