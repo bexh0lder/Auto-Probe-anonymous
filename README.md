@@ -12,6 +12,8 @@ The Auto-Probe framework consists of five core stages that enable end-to-end aut
 4. **Question Construction** - Generate basic existence questions and AttriBait multiple-choice questions
 5. **Model Evaluation** - Assess model performance with comprehensive metrics
 
+This repository provides comprehensive pseudocode algorithms for all five framework stages, offering complete algorithmic details for research transparency and reproducibility. The pseudocode captures the core logic and methodology while abstracting implementation-specific details.
+
 ## Framework Pseudocode
 
 ### 1. Hallucination Induction
