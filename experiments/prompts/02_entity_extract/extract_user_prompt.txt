@@ -1,0 +1,40 @@
+## Task Requirements
+
+Extract all distinct physical objects from the provided description, applying the following rules:
+
+### Rule 1: Remove All Modifiers, Keep Only Core Nouns
+Strictly exclude all descriptive elements and extract only the base noun:
+- "large red wooden table" → "table"
+- "two playful puppies" → "dog"
+- "vintage green bicycle" → "bicycle"
+- "fluffy white sheep" → "sheep"
+- "old rusty tractor" → "tractor"
+
+### Rule 2: Standardize Format
+- Use singular form: "cats" → "cat", "children" → "child"
+- Use lowercase form: "CAR" → "car"
+- List each unique object type only once
+
+### Rule 3: Focus on Physical Objects
+Only extract tangible, physical objects that can be visually detected in an image.
+
+## Output Format
+Return ONLY a JSON array of strings. Do not include any explanations, comments, or additional text.
+
+## Example
+Input: "A fluffy white sheep grazes in a vast green pasture near a weathered wooden fence. An old, rusty tractor sits beside a dilapidated red barn while a young shepherd watches over small sparrows."
+
+Output: ["sheep", "pasture", "fence", "tractor", "barn", "shepherd", "sparrow"]
+
+### Processing Explanation
+"fluffy white sheep" → "sheep"
+"vast green pasture" → "pasture"
+"weathered wooden fence" → "fence"
+"old, rusty tractor" → "tractor"
+"dilapidated red barn" → "barn"
+"young shepherd" → "shepherd"
+"small sparrows" → "sparrow" 
+
+Extract objects from the following description:
+
+{caption_text}
